@@ -42,7 +42,7 @@ func main() {
 }
 
 func start(port int) {
-	go consumeCommandResults()
+	go consumeCommandResultsLoop()
 
 	srv := gserv.New()
 
@@ -110,36 +110,35 @@ func execCommandAndGetResponse(command string, args ...string) string {
 }
 
 func consumeCommandResults() {
+	buffer := ""
+
 	file, err := os.Open(pipePath)
 	if err != nil {
-		fmt.Printf("Error opening file: %v\n", err)
-		close(resultChan)
-		return
-	}
+		buffer = fmt.Sprintf("Error opening file: %v\n", err)
+	} else {
+		defer func(file *os.File) {
+			_ = file.Close()
+		}(file)
 
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			buffer += line + "\n"
+			if line == "OK" {
+				select {
+				case resultChan <- buffer:
+					buffer = ""
 
-	scanner := bufio.NewScanner(file)
-	buffer := ""
-	for scanner.Scan() {
-		line := scanner.Text()
-		buffer += line + "\n"
-		if line == "OK" {
-			select {
-			case resultChan <- buffer:
-				buffer = ""
-
-			default:
-				resultChan <- buffer
-				buffer = ""
+				default:
+					resultChan <- buffer
+					buffer = ""
+				}
 			}
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
+		if err := scanner.Err(); err != nil {
+			buffer = fmt.Sprintf("Error reading file: %v\n", err)
+		}
 	}
 
 	if buffer != "" {
@@ -149,8 +148,13 @@ func consumeCommandResults() {
 			resultChan <- buffer
 		}
 	}
+}
 
-	close(resultChan)
+func consumeCommandResultsLoop() {
+	for {
+		consumeCommandResults()
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func CreateCacheHandler(handler func(*gserv.Context) gserv.Response) func(*gserv.Context) gserv.Response {

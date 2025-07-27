@@ -10,14 +10,19 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"go.oneofone.dev/gserv"
 )
 
 const pipePath = "/dev/smd7"
+const cacheDuration = 500 * time.Millisecond
 
 var resultChan = make(chan string, 1)
+var cacheMutex sync.Mutex
+var cachedResponse gserv.Response
+var lastCacheTime time.Time
 
 func main() {
 	// Define a variable to hold the port number
@@ -42,7 +47,7 @@ func start(port int) {
 	srv := gserv.New()
 
 	svc := Svc{}
-	srv.GET("/", svc.HandleRequest)
+	srv.GET("/", CreateCacheHandler(svc.HandleRequest))
 
 	fmt.Printf("Listening on port %d. Press CTLR+C to exit...\n", port)
 	log.Panic(srv.Run(context.Background(), "0.0.0.0:"+fmt.Sprintf("%d", port)))
@@ -146,4 +151,21 @@ func consumeCommandResults() {
 	}
 
 	close(resultChan)
+}
+
+func CreateCacheHandler(handler func(*gserv.Context) gserv.Response) func(*gserv.Context) gserv.Response {
+	return func(ctx *gserv.Context) gserv.Response {
+		cacheMutex.Lock()
+		defer cacheMutex.Unlock()
+
+		if time.Since(lastCacheTime) < cacheDuration && cachedResponse != nil {
+			return cachedResponse
+		}
+
+		newResponse := handler(ctx)
+		cachedResponse = newResponse
+		lastCacheTime = time.Now()
+
+		return newResponse
+	}
 }

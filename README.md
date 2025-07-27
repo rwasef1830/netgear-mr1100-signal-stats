@@ -6,5 +6,5 @@
 
 # One-line installer
 ```
-curl -k https://raw.githubusercontent.com/rwasef1830/netgear-mr1100-signal-stats/refs/heads/main/setup.sh | sh
+curl -s -k https://raw.githubusercontent.com/rwasef1830/netgear-mr1100-signal-stats/refs/heads/main/setup.sh | sh
 ```

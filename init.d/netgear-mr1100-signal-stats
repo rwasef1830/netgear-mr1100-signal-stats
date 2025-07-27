@@ -22,18 +22,18 @@ start() {
     fi
     
     "$EXECUTABLE" &
-    RETURN=$!
+    PID=$!
     
-    if [ $RETURN -eq 0 ]; then
-        echo "$RETURN" > $PIDFILE
+    if [ $PID -ne 0 ]; then
+        echo "$PID" > $PIDFILE
         success "$SERVICE_NAME startup"
         echo
+        return 0
     else
         failure "$SERVICE_NAME startup"
         echo
+        return 1
     fi
-    
-    return $RETURN
 }
 
 stop() {

@@ -80,7 +80,7 @@ func execAtCommandAndGetResponse(command string) string {
 	_ = execCommandAndGetResponse("sh", "-c", fmt.Sprintf("echo -e \"\r\n%s\r\n\" > %s", command, pipePath))
 	select {
 	case result := <-resultChan:
-		return result
+		return "<pre>" + result + "</pre>\n"
 
 	case <-time.After(1 * time.Second):
 		return "<timed out reading response>"

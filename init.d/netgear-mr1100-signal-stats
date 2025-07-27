@@ -1,0 +1,98 @@
+#!/bin/sh
+
+# Source function library.
+. /etc/init.d/functions
+
+# Variables
+SERVICE_NAME="netgear-mr1100-signal-stats"
+EXECUTABLE="/data/bin/$SERVICE_NAME"
+PIDFILE="/var/run/${SERVICE_NAME}.pid"
+
+# Check if executable exists
+if [ ! -x "$EXECUTABLE" ]; then
+    echo "Error: Executable not found at $EXECUTABLE"
+    exit 1
+fi
+
+start() {
+    echo "Starting $SERVICE_NAME: "
+    if [ -f $PIDFILE ]; then
+        echo "$SERVICE_NAME is already running."
+        return 0
+    fi
+    
+    daemon --user=nobody --pidfile=$PIDFILE "$EXECUTABLE"
+    RETURN=$?
+    
+    if [ $RETURN -eq 0 ]; then
+        touch $PIDFILE
+        success "$SERVICE_NAME startup"
+        echo
+    else
+        failure "$SERVICE_NAME startup"
+        echo
+    fi
+    
+    return $RETURN
+}
+
+stop() {
+    echo "Stopping $SERVICE_NAME: "
+    
+    if [ ! -f $PIDFILE ]; then
+        echo "$SERVICE_NAME is not running."
+        return 0
+    fi
+    
+    killproc -p $PIDFILE $SERVICE_NAME
+    RETURN=$?
+    
+    if [ $RETURN -eq 0 ]; then
+        rm -f $PIDFILE
+        success "$SERVICE_NAME shutdown"
+        echo
+    else
+        failure "$SERVICE_NAME shutdown"
+        echo
+    fi
+    
+    return $RETURN
+}
+
+status() {
+    if [ ! -f $PIDFILE ]; then
+        echo "$SERVICE_NAME is not running."
+        exit 3
+    fi
+    
+    PID=$(cat $PIDFILE)
+    if ps -p "$PID" > /dev/null; then
+        echo "$SERVICE_NAME (pid $PID) is running..."
+        exit 0
+    else
+        echo "$SERVICE_NAME dead but pid file exists"
+        rm -f $PIDFILE
+        exit 1
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status|restart}"
+        exit 2
+esac
+
+exit $?

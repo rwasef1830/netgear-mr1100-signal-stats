@@ -21,11 +21,11 @@ start() {
         return 0
     fi
     
-    daemon --user=nobody --pidfile=$PIDFILE "$EXECUTABLE"
-    RETURN=$?
+    "$EXECUTABLE" &
+    RETURN=$!
     
     if [ $RETURN -eq 0 ]; then
-        touch $PIDFILE
+        echo "$RETURN" > $PIDFILE
         success "$SERVICE_NAME startup"
         echo
     else
